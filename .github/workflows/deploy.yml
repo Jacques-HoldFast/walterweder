@@ -37,9 +37,9 @@ jobs:
           # Backup current files
           sudo cp -r /var/www/walterweder.rocks /var/www/walterweder.rocks.backup.$(date +%Y%m%d_%H%M%S)
           
-          # Clear current files (keep .git if exists)
-          sudo find /var/www/walterweder.rocks -mindepth 1 -name ".git" -prune -o -type f -delete
-          sudo find /var/www/walterweder.rocks -mindepth 1 -name ".git" -prune -o -type d -empty -delete
+          # Clear current files (simple approach)
+          sudo rm -rf /var/www/walterweder.rocks/*
+          sudo rm -rf /var/www/walterweder.rocks/.[^.]*
     
     - name: Copy files to server
       uses: appleboy/scp-action@v0.1.7
