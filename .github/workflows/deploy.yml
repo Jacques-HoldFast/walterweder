@@ -1,0 +1,70 @@
+# .github/workflows/deploy.yml
+name: Deploy to Server
+
+on:
+  push:
+    branches: [ main, master ]  # Triggers on push to main or master
+  workflow_dispatch:  # Allows manual trigger
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Build React app
+      run: npm run build
+    
+    - name: Deploy to server
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.HOST }}
+        username: ${{ secrets.USERNAME }}
+        key: ${{ secrets.SSH_KEY }}
+        port: ${{ secrets.PORT || 22 }}
+        script: |
+          # Backup current files
+          sudo cp -r /var/www/walterweder.rocks /var/www/walterweder.rocks.backup.$(date +%Y%m%d_%H%M%S)
+          
+          # Clear current files (keep .git if exists)
+          sudo find /var/www/walterweder.rocks -mindepth 1 -name ".git" -prune -o -type f -delete
+          sudo find /var/www/walterweder.rocks -mindepth 1 -name ".git" -prune -o -type d -empty -delete
+    
+    - name: Copy files to server
+      uses: appleboy/scp-action@v0.1.7
+      with:
+        host: ${{ secrets.HOST }}
+        username: ${{ secrets.USERNAME }}
+        key: ${{ secrets.SSH_KEY }}
+        port: ${{ secrets.PORT || 22 }}
+        source: "dist/*"
+        target: "/var/www/walterweder.rocks/"
+        strip_components: 1
+    
+    - name: Set permissions and reload nginx
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.HOST }}
+        username: ${{ secrets.USERNAME }}
+        key: ${{ secrets.SSH_KEY }}
+        port: ${{ secrets.PORT || 22 }}
+        script: |
+          # Set proper permissions
+          sudo chown -R www-data:www-data /var/www/walterweder.rocks
+          sudo chmod -R 755 /var/www/walterweder.rocks
+          
+          # Reload nginx
+          sudo systemctl reload nginx
+          
+          echo "✅ Deployment completed successfully!"
